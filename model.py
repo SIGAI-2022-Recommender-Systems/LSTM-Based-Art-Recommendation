@@ -9,7 +9,7 @@ class recSysNet(nn.Module):
         self.bidirectional_multiplier = 2 if bidirectional else 1
         self.device = device
         
-        #self.embed = nn.Embedding(output_size, embedding_dim)
+        self.embed = nn.Embedding(output_size, embedding_dim)
         self.lstm = nn.LSTM(input_size=embedding_dim, hidden_size=hidden_size,
                           num_layers=num_layers, batch_first = True, 
                           dropout = dropout if num_layers>1 else 0, 
@@ -25,7 +25,7 @@ class recSysNet(nn.Module):
         c_0 = torch.autograd.Variable(torch.zeros(self.num_layers*self.bidirectional_multiplier, 
                                                   x.size(0), self.hidden_size)).to(self.device) #internal state
         # Propagate input through LSTM
-        #x = self.embed(x)
+        x = self.embed(x)
         x, (hn, cn) = self.lstm(x, (h_0, c_0)) #lstm with input, hidden, and internal state
         x = self.dropout(x)
         x = self.fc(x)
