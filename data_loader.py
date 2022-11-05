@@ -14,6 +14,9 @@ class recSysDataset(torch.utils.data.Dataset):
     def __init__(self, root="D:\\LSTM-Based-Art-Recommendation\\data\\kcore_5_collated.txt", max_len=35, users=-1):
         self.sequences = []
         self.counts = []
+        self.device = "cpu"
+        if torch.cuda.is_available():
+            self.device="gpu"
         with open(root, 'r') as f:
             self.idx_to_item = f.readline().strip().split(",")
             self.item_to_idx = {v: i for i, v in enumerate(self.idx_to_item)}
@@ -38,8 +41,8 @@ class recSysDataset(torch.utils.data.Dataset):
                         holder += [[1] + [int(i) for i in split_seq] + [0]*(max_len-len(split_seq)-1)]
                     self.sequences += holder
                     self.counts += [len(holder) for _ in holder]
-        self.sequences = torch.tensor(self.sequences, dtype=torch.int64).to("cuda")
-        self.counts = torch.tensor(self.counts, dtype=torch.int64).to("cuda")
+        self.sequences = torch.tensor(self.sequences, dtype=torch.int64).to(self.device)
+        self.counts = torch.tensor(self.counts, dtype=torch.int64).to(self.device)
 
     def __len__(self):
         return len(self.sequences)
@@ -99,10 +102,10 @@ def get_time(line):
 # ==========SAMPLE USAGE==========
 if __name__ == "__main__":
     dataset = recSysDataset(max_len=20, root = "data\\kcore_5_collated.txt")
-    train_data = train_val_test_split(dataset, split=(.85,.1,.05), mode = "train")
-    val_data = train_val_test_split(dataset, split=(.85,.1,.05), mode = "val")
-    test_data = train_val_test_split(dataset, split=(.85,.1,.05), mode = "test")
+    train_data = train_val_test_split(dataset, split=(.5,.45,.05), mode = "train")
+    val_data = train_val_test_split(dataset, split=(.5,.45,.05), mode = "val")
+    test_data = train_val_test_split(dataset, split=(.5,.45,.05), mode = "test")
 
     dataloader = torch.utils.data.DataLoader(train_data, batch_size = 16, shuffle = True)
-    for item in tqdm(dataloader,file=sys.stdout,total=len(dataloader)):
-        tqdm.write(f"{item.size()}")
+    for (item,n) in tqdm(dataloader,file=sys.stdout,total=len(dataloader)):
+        tqdm.write(f"{item.size()}, {len(n)}")
