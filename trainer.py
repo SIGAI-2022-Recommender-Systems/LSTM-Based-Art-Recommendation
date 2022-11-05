@@ -4,18 +4,20 @@ import pandas as pd
 from data_loader import *
 from model import *
 from torch.optim import Adam
+from torch.nn import BCELoss
 def BPRLoss(output:torch.Tensor,target:torch.Tensor,negatives:torch.Tensor):
     # print(target.size(),output.size(),negatives.size())
     assert target.size()[0] == negatives.size()[0] == output.size()[0]
-    assert target.size()[1] == negatives.size()[1] == output.size()[1]
+    assert target.size()[1] == negatives.size()[1] == output.size()[1]+1
     # [:,1:-1] removes the predictions for 0th time step and last time step since they are meaningless for loss
     # torch.gather grabs the positive and negative at each time step
     mask = target[:,1:-1]!=0
     a = torch.gather(output[:,1:,:],2,target[:,1:-1].unsqueeze(2)) #shape:batch_sizexsequence_length-2
     b = torch.gather(output[:,1:,:],2,negatives[:,1:-1].unsqueeze(2))
-    a = a[mask] #flat
-    b = b[mask] #flat
-    return - (a - b).sigmoid().log().sum()
+    a = a[mask].sigmoid() #flat
+    b = b[mask].sigmoid() #flat
+    # return - (a - b).sigmoid().log().sum()
+    return BCELoss()(b,torch.zeros(b.size(),device="cuda"))-BCELoss()(a,torch.ones(a.size(),device="cuda"))
 
 class Trainer():
     """
