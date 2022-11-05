@@ -17,7 +17,7 @@ def BPRLoss(output:torch.Tensor,target:torch.Tensor,negatives:torch.Tensor):
     a = a[mask].sigmoid() #flat
     b = b[mask].sigmoid() #flat
     # return - (a - b).sigmoid().log().sum()
-    return BCELoss()(b,torch.zeros(b.size(),device="cuda"))-BCELoss()(a,torch.ones(a.size(),device="cuda"))
+    return BCELoss()(b,torch.zeros(b.size(),device="cuda"))+BCELoss()(a,torch.ones(a.size(),device="cuda"))
 
 class Trainer():
     """
@@ -65,7 +65,7 @@ class Trainer():
 
         # if self.lr_scheduler is not None:
         #     self.lr_scheduler.step()
-            pbar.set_description(f"Batch loss:{str(losses.mean().item())}")
+            pbar.set_description(f"Batch loss:{str(losses[losses!=0].mean().item())}")
         return losses.mean()
 
     def _valid_epoch(self, epoch):
