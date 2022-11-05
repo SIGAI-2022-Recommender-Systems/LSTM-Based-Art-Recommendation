@@ -16,7 +16,7 @@ class recSysDataset(torch.utils.data.Dataset):
         self.counts = []
         self.device = "cpu"
         if torch.cuda.is_available():
-            self.device="gpu"
+            self.device="cuda"
         with open(root, 'r') as f:
             self.idx_to_item = f.readline().strip().split(",")
             self.item_to_idx = {v: i for i, v in enumerate(self.idx_to_item)}
@@ -107,5 +107,5 @@ if __name__ == "__main__":
     test_data = train_val_test_split(dataset, split=(.5,.45,.05), mode = "test")
 
     dataloader = torch.utils.data.DataLoader(train_data, batch_size = 16, shuffle = True)
-    for (item,n) in tqdm(dataloader,file=sys.stdout,total=len(dataloader)):
+    for idx,(item,n) in tqdm(enumerate(dataloader),file=sys.stdout,total=len(dataloader)):
         tqdm.write(f"{item.size()}, {len(n)}")

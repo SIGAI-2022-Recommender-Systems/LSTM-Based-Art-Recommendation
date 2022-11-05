@@ -36,12 +36,12 @@ class Trainer():
         """
         self.model.train()
         losses = torch.zeros(len(self.data_loader))
-        for batch_idx, (data) in tqdm(enumerate(self.data_loader),total=len(self.data_loader),delay=.5):
+        for batch_idx, (data,counts) in tqdm(enumerate(self.data_loader),total=len(self.data_loader),delay=.5):
             tqdm.write("Inside loop")
-            target = torch.roll(data, -1, 1).view(1,-1,1)
+            target = torch.roll(data, -1, 1).view(1,-1,1).to(self.device)
             self.optimizer.zero_grad()
             #generate negative items
-            negatives = target[:]
+            negatives = target[:].to(self.device)
             while len(negatives[negatives==target]):
                 negatives[negatives==target] = torch.randint(2,1569973,size=negatives[negatives==target].size())
             output = self.model(data)
@@ -71,7 +71,7 @@ class Trainer():
             for batch_idx, (data) in tqdm(enumerate(self.valid_data_loader,total=len())):
                 target = torch.roll(data, -1, 1)
                 #generate negative items
-                negatives = data[:]
+                negatives = data[:].to(self.device)
                 while len(negatives[negatives==data]):
                     negatives[negatives==data] = torch.randint(2,1569973,size=negatives[negatives==data].size())
                 output = self.model(data)
