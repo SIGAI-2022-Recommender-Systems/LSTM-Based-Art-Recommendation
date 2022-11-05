@@ -20,20 +20,19 @@ class recSysNet(nn.Module):
         
     
     def forward(self,x):
-        # h_0 = torch.autograd.Variable(torch.zeros(self.num_layers*self.bidirectional_multiplier, 
-        #                                           x.size(0), self.hidden_size)).to(self.device) #hidden state
-        # c_0 = torch.autograd.Variable(torch.zeros(self.num_layers*self.bidirectional_multiplier, 
-        #                                           x.size(0), self.hidden_size)).to(self.device) #internal state
+        h_0 = torch.autograd.Variable(torch.zeros(self.num_layers*self.bidirectional_multiplier, 
+                                                  x.size(0), self.hidden_size)).to(self.device) #hidden state
+        c_0 = torch.autograd.Variable(torch.zeros(self.num_layers*self.bidirectional_multiplier, 
+                                                  x.size(0), self.hidden_size)).to(self.device) #internal state
         # Propagate input through LSTM
         x = self.embed(x)
-        # x, (hn, cn) = self.lstm(x, (h_0, c_0)) #lstm with input, hidden, and internal state
-        x = self.lstm(x)
+        x, (hn, cn) = self.lstm(x, (h_0, c_0)) #lstm with input, hidden, and internal state
         x = self.dropout(x)
         x = self.fc(x)
         return x
 
 if __name__ == "__main__":
-    model = recSysNet("cpu",1569975,20,20,1,.1,bidirectional=False)
+    model = recSysNet("cpu",1569974,20,20,1,.1,bidirectional=False)
     start = perf_counter()
     out = model(torch.randint(0,1000,size=(10,35)))
     print(out.size()) # 1569974 items
