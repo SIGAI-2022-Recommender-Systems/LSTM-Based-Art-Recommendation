@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+from time import perf_counter
 class recSysNet(nn.Module):
     def __init__(self, device, output_size, embedding_dim, hidden_size, num_layers, dropout, bidirectional):
         super(recSysNet, self).__init__()
@@ -30,3 +30,10 @@ class recSysNet(nn.Module):
         x = self.dropout(x)
         x = self.fc(x)
         return x
+
+if __name__ == "__main__":
+    model = recSysNet("cpu",1569974,20,20,1,.1,bidirectional=False)
+    start = perf_counter()
+    out = model(torch.randint(0,1000,size=(10,35)))
+    print(out.size()) # 1569974 items
+    print(perf_counter()-start)

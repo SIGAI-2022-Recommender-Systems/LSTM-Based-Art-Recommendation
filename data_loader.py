@@ -3,6 +3,8 @@ import os
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 import random
+import sys
+
 
 class recSysDataset(torch.utils.data.Dataset):
     def __init__(self, root="D:\\LSTM-Based-Art-Recommendation\\data\\kcore_5_collated.txt", max_len=35, users = -1):
@@ -10,12 +12,14 @@ class recSysDataset(torch.utils.data.Dataset):
         with open(root, 'r') as f:
             self.idx_to_item = f.readline().strip().split(",")
             self.item_to_idx = {v:i for i, v in enumerate(self.idx_to_item)}
-            
+            # self.allitems = set() testing purposes
             for idx, l in tqdm(enumerate(f)):
                 if users != -1 and idx >= users:
                     break
                 
                 split_seq = l.strip().split(",")
+                # for i_ in split_seq:
+                #     self.allitems.add(int(i_))
                 if len(split_seq) < max_len-1:
                     self.sequences += [[1] + [int(i) for i in split_seq] + [0]*(max_len-len(split_seq)-1)]
                 else:
@@ -27,7 +31,8 @@ class recSysDataset(torch.utils.data.Dataset):
                         self.sequences += [[1] + [int(i) for i in split_seq] + [0]*(max_len-len(split_seq)-1)]
         
         random.shuffle(self.sequences)
-        self.sequences = torch.tensor(self.sequences, dtype = torch.int64).to("cuda")
+        self.sequences = torch.tensor(self.sequences, dtype = torch.int64).to("cpu:0")
+        # print(self.allitems,len(self.allitems),max(self.allitems),len(set(range(max(self.allitems))).difference(self.allitems)))
     
     def __len__(self):
         return len(self.sequences)
@@ -55,7 +60,7 @@ def parse(data = "D:\\kcore_5.json"):
     user_to_items = {}
     item_to_idx = {"<PAD>":0, "<START>":1}
     with open(data, 'r') as f:
-        for l in tqdm(f, desc = "collating"):
+        for l in tqdm(f, desc = "collating",file=sys.stdout):
             line = eval(l)
             if line["asin"] not in item_to_idx:
                 item_to_idx[line["asin"]] = len(item_to_idx)
@@ -68,7 +73,7 @@ def parse(data = "D:\\kcore_5.json"):
     with open(root, 'w') as f:
         f.write(",".join(idx_to_item) + "\n")
 
-        for idx, items in tqdm(enumerate(user_to_items.values()), desc = "writing"):
+        for idx, items in tqdm(enumerate(user_to_items.values()), desc = "writing",file=sys.stdout):
             if idx+1 < len(user_to_items.values()):
                 f.write(",".join(map((lambda x: str(x[0])), sorted(items, key=(lambda z: z[1])))) + "\n")
             else:
@@ -81,12 +86,13 @@ def get_time(line):
         return (int(line["reviewTime"][-4:]) - 1970) * 32140800 #approximate the unix timestamp based on year                
 
     
-#==========SAMPLE USAGE==========
-# dataset = recSysDataset(max_len=20, root = "data\\user_dedup_collated.txt")
-# train_data = train_val_test_split(dataset, split=(.85,.1,.05), mode = "train")
-# val_data = train_val_test_split(dataset, split=(.85,.1,.05), mode = "val")
-# test_data = train_val_test_split(dataset, split=(.85,.1,.05), mode = "test")
+# ==========SAMPLE USAGE==========
+if __name__ == "__main__":
+    dataset = recSysDataset(max_len=20, root = "data\\kcore_5_collated.txt")
+    train_data = train_val_test_split(dataset, split=(.85,.1,.05), mode = "train")
+    val_data = train_val_test_split(dataset, split=(.85,.1,.05), mode = "val")
+    test_data = train_val_test_split(dataset, split=(.85,.1,.05), mode = "test")
 
-# dataloader = torch.utils.data.DataLoader(train_data, batch_size = 16, shuffle = True)
-# for _ in tqdm(dataloader):
-#     pass
+    dataloader = torch.utils.data.DataLoader(train_data, batch_size = 16, shuffle = True)
+    for item in tqdm(dataloader,file=sys.stdout,total=len(dataloader)):
+        tqdm.write(f"{item.size()}")
