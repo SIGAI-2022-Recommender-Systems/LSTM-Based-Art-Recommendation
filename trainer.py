@@ -5,7 +5,9 @@ from data_loader import *
 from model import *
 from torch.optim import Adam
 def BPRLoss(output:torch.Tensor,target:torch.Tensor,negatives:torch.Tensor):
-    assert target.size()[0] == negatives.size()[0] == output.size()[0] and target.size()[1] == negatives.size()[1] == output.size()[1]
+    # print(target.size(),output.size(),negatives.size())
+    assert target.size()[0] == negatives.size()[0] == output.size()[0]
+    assert target.size()[1] == negatives.size()[1] == output.size()[1]
     # [:,1:-1] removes the predictions for 0th time step and last time step since they are meaningless for loss
     # torch.gather grabs the positive and negative at each time step
     return - (torch.gather(output[:,1:-1,:],2,target[:,1:-1].unsqueeze(2)) - torch.gather(output[:,1:-1,:],2,negatives[:,1:-1].unsqueeze(2))).sigmoid().log().sum()
@@ -18,7 +20,7 @@ class Trainer():
                  data_loader, valid_data_loader=None, lr_scheduler=None, len_epoch=None):
         self.device = "cpu"
         if torch.cuda.is_available():
-            self.device="gpu"
+            self.device="cuda"
         self.data_loader = data_loader
         self.log = pd.DataFrame(columns = ["Epoch"]+metric_ftns)
         self.valid_data_loader = valid_data_loader
@@ -36,14 +38,14 @@ class Trainer():
         """
         self.model.train()
         losses = torch.zeros(len(self.data_loader))
-        for batch_idx, (data,counts) in tqdm(enumerate(self.data_loader),total=len(self.data_loader),delay=.5):
-            tqdm.write("Inside loop")
-            target = torch.roll(data, -1, 1).view(1,-1,1).to(self.device)
+        pbar = tqdm(enumerate(self.data_loader),total=len(self.data_loader),delay=.5)
+        for batch_idx, (data,counts) in pbar:
+            target = torch.roll(data, -1, 1).to(self.device)
             self.optimizer.zero_grad()
             #generate negative items
-            negatives = target[:].to(self.device)
+            negatives = target.clone()
             while len(negatives[negatives==target]):
-                negatives[negatives==target] = torch.randint(2,1569973,size=negatives[negatives==target].size())
+                negatives[negatives==target] = torch.randint(2,1569973,size=negatives[negatives==target].size(),device=self.device)
             output = self.model(data)
             #output format: userxtimestepxprediction
             loss = self.criterion(output, target,negatives)
@@ -56,7 +58,7 @@ class Trainer():
 
         # if self.lr_scheduler is not None:
         #     self.lr_scheduler.step()
-            tqdm.write(losses.mean())
+            pbar.set_description(f"Batch loss:{str(losses.mean().item())}")
         return losses.mean()
 
     def _valid_epoch(self, epoch):
@@ -91,7 +93,7 @@ class Trainer():
     def train(self,epochs=30):
         for i in range(epochs):
             loss = self._train_epoch(i)
-            tqdm.write(f"Epoch {i} loss: {loss}")
+            tqdm.write(f"Epoch {i} loss: {str(loss)}")
     
     def _save_checkpoint(self, epoch, save_best=False):
         """
