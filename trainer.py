@@ -10,7 +10,7 @@ def BPRLoss(output:torch.Tensor,target:torch.Tensor,negatives:torch.Tensor):
     assert target.size()[1] == negatives.size()[1] == output.size()[1]
     # [:,1:-1] removes the predictions for 0th time step and last time step since they are meaningless for loss
     # torch.gather grabs the positive and negative at each time step
-    return - (torch.gather(output[:,1:-1,:],2,target[:,1:-1].unsqueeze(2)) - torch.gather(output[:,1:-1,:],2,negatives[:,1:-1].unsqueeze(2))).sigmoid().log().sum()
+    return - (torch.gather(output[:,1:,:],2,target[:,1:-1].unsqueeze(2)) - torch.gather(output[:,1:,:],2,negatives[:,1:-1].unsqueeze(2))).sigmoid().log().sum()
 
 class Trainer():
     """
@@ -46,7 +46,7 @@ class Trainer():
             negatives = target.clone()
             while len(negatives[negatives==target]):
                 negatives[negatives==target] = torch.randint(2,1569973,size=negatives[negatives==target].size(),device=self.device)
-            output = self.model(data)
+            output = self.model(data[:,:-1])
             #output format: userxtimestepxprediction
             loss = self.criterion(output, target,negatives)
             loss.backward()
