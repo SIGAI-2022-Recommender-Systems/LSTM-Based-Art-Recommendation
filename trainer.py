@@ -10,7 +10,12 @@ def BPRLoss(output:torch.Tensor,target:torch.Tensor,negatives:torch.Tensor):
     assert target.size()[1] == negatives.size()[1] == output.size()[1]
     # [:,1:-1] removes the predictions for 0th time step and last time step since they are meaningless for loss
     # torch.gather grabs the positive and negative at each time step
-    return - (torch.gather(output[:,1:,:],2,target[:,1:-1].unsqueeze(2)) - torch.gather(output[:,1:,:],2,negatives[:,1:-1].unsqueeze(2))).sigmoid().log().sum()
+    mask = target[:,1:-1]!=0
+    a = torch.gather(output[:,1:,:],2,target[:,1:-1].unsqueeze(2)) #shape:batch_sizexsequence_length-2
+    b = torch.gather(output[:,1:,:],2,negatives[:,1:-1].unsqueeze(2))
+    a = a[mask] #flat
+    b = b[mask] #flat
+    return - (a - b).sigmoid().log().sum()
 
 class Trainer():
     """
