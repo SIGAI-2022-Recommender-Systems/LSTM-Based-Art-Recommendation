@@ -1,47 +1,55 @@
 import torch
-import os
 from tqdm import tqdm
-from sklearn.model_selection import train_test_split
 import random
 import sys
 
 
+
 class recSysDataset(torch.utils.data.Dataset):
-    def __init__(self, root="D:\\LSTM-Based-Art-Recommendation\\data\\kcore_5_collated.txt", max_len=35, users = -1):
+    """
+    when used correctly, dataloader will return a list containing 2 tensors
+    first being the sequences of shape (batch_size, max_len)
+    second being the user's number of sequences of shape (batch_size)
+    """
+    def __init__(self, root="D:\\LSTM-Based-Art-Recommendation\\data\\kcore_5_collated.txt", max_len=35, users=-1):
         self.sequences = []
+        self.counts = []
         with open(root, 'r') as f:
             self.idx_to_item = f.readline().strip().split(",")
-            self.item_to_idx = {v:i for i, v in enumerate(self.idx_to_item)}
-            # self.allitems = set() testing purposes
+            self.item_to_idx = {v: i for i, v in enumerate(self.idx_to_item)}
+
             for idx, l in tqdm(enumerate(f)):
                 if users != -1 and idx >= users:
                     break
-                
+
                 split_seq = l.strip().split(",")
                 # for i_ in split_seq:
-                #     self.allitems.add(int(i_))
+                #     self.allitemsSadd(int(i_))
                 if len(split_seq) < max_len-1:
                     self.sequences += [[1] + [int(i) for i in split_seq] + [0]*(max_len-len(split_seq)-1)]
+                    self.counts += [1]
                 else:
+                    holder = []
                     while len(split_seq) > max_len-1:
-                        delimiter = random.randint(2, max_len-1) #place where random delimiter is selected
-                        self.sequences += [[1] + [int(i) for i in split_seq[:delimiter]] + [0]*(max_len-delimiter-1)]
+                        delimiter = random.randint(2, max_len-1)  # place where random delimiter is selected
+                        holder += [[1] + [int(i) for i in split_seq[:delimiter]] + [0]*(max_len-delimiter-1)]
                         split_seq = split_seq[delimiter:]
                     if split_seq:
-                        self.sequences += [[1] + [int(i) for i in split_seq] + [0]*(max_len-len(split_seq)-1)]
-        
-        random.shuffle(self.sequences)
-        self.sequences = torch.tensor(self.sequences, dtype = torch.int64).to("cpu:0")
-        # print(self.allitems,len(self.allitems),max(self.allitems),len(set(range(max(self.allitems))).difference(self.allitems)))
-    
+                        holder += [[1] + [int(i) for i in split_seq] + [0]*(max_len-len(split_seq)-1)]
+                    self.sequences += holder
+                    self.counts += [len(holder) for _ in holder]
+        self.sequences = torch.tensor(self.sequences, dtype=torch.int64).to("cuda")
+        self.counts = torch.tensor(self.counts, dtype=torch.int64).to("cuda")
+
     def __len__(self):
         return len(self.sequences)
-    
+
     def __getitem__(self, idx):
-        return self.sequences[idx] #torch.tensor(self.sequences[idx], dtype = torch.int64).to("cuda")
-    
+        return self.sequences[idx], self.counts[idx]
+
+
 class train_val_test_split(torch.utils.data.Dataset):
-    def __init__(self, dataset, split = (.85, .1, .05), mode="train"):
+    def __init__(self, dataset, split=(.85, .1, .05), mode="train"):
         self.dataset = dataset
         self.split = split
         self.mode = 0 if mode == "train" else 1 if mode == "val" else 2 if mode == "test" else -1
@@ -54,14 +62,15 @@ class train_val_test_split(torch.utils.data.Dataset):
         # if idx+self.interval[0] >= self.interval[1]:
         #     raise StopIteration
         return self.dataset[idx + self.interval[0]]
-        
-def parse(data = "D:\\kcore_5.json"):
+
+
+def parse(data="D:\\kcore_5.json"):
     root = data.split(".")[0] + "_collated.txt"
     user_to_items = {}
-    item_to_idx = {"<PAD>":0, "<START>":1}
+    item_to_idx = {"<PAD>": 0, "<START>": 1}
     with open(data, 'r') as f:
-        for l in tqdm(f, desc = "collating",file=sys.stdout):
-            line = eval(l)
+        for raw_line in tqdm(f, desc="collating"):
+            line = eval(raw_line)
             if line["asin"] not in item_to_idx:
                 item_to_idx[line["asin"]] = len(item_to_idx)
             if line["reviewerID"] in user_to_items:
@@ -73,11 +82,12 @@ def parse(data = "D:\\kcore_5.json"):
     with open(root, 'w') as f:
         f.write(",".join(idx_to_item) + "\n")
 
-        for idx, items in tqdm(enumerate(user_to_items.values()), desc = "writing",file=sys.stdout):
+        for idx, items in tqdm(enumerate(user_to_items.values()), desc="writing"):
             if idx+1 < len(user_to_items.values()):
                 f.write(",".join(map((lambda x: str(x[0])), sorted(items, key=(lambda z: z[1])))) + "\n")
             else:
                 f.write(",".join(map((lambda x: str(x[0])), sorted(items, key=(lambda z: z[1])))))
+
 
 def get_time(line):
     try:
