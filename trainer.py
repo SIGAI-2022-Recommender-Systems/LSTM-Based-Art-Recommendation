@@ -4,20 +4,22 @@ import pandas as pd
 from data_loader import *
 from model import *
 from torch.optim import Adam
-from torch.nn import BCELoss
+
+@torch.jit.script
 def BPRLoss(output:torch.Tensor,target:torch.Tensor,negatives:torch.Tensor):
     # print(target.size(),output.size(),negatives.size())
-    assert target.size()[0] == negatives.size()[0] == output.size()[0]
-    assert target.size()[1] == negatives.size()[1] == output.size()[1]+1
+    # assert target.size()[0] == negatives.size()[0] == output.size()[0]
+    # assert target.size()[1] == negatives.size()[1] == output.size()[1]+1
     # [:,1:-1] removes the predictions for 0th time step and last time step since they are meaningless for loss
     # torch.gather grabs the positive and negative at each time step
     mask = target[:,1:-1]!=0
     a = torch.gather(output[:,1:,:],2,target[:,1:-1].unsqueeze(2)) #shape:batch_sizexsequence_length-2
     b = torch.gather(output[:,1:,:],2,negatives[:,1:-1].unsqueeze(2))
-    a = a[mask].sigmoid() #flat
-    b = b[mask].sigmoid() #flat
+    a = a[mask]
+    b = b[mask]
     # return - (a - b).sigmoid().log().sum()
-    return BCELoss()(b,torch.zeros(b.size(),device="cuda"))+BCELoss()(a,torch.ones(a.size(),device="cuda"))
+    losses = - (a - b).sigmoid().log()
+    return losses.sum()
 
 class Trainer():
     """
@@ -45,7 +47,7 @@ class Trainer():
         """
         self.model.train()
         losses = torch.zeros(len(self.data_loader))
-        pbar = tqdm(enumerate(self.data_loader),total=len(self.data_loader),delay=.5)
+        pbar = tqdm(enumerate(self.data_loader),total=len(self.data_loader),mininterval=1.0)
         for batch_idx, (data,counts) in pbar:
             target = torch.roll(data, -1, 1).to(self.device)
             self.optimizer.zero_grad()
