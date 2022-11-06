@@ -1,3 +1,1 @@
 *.txt filter=lfs diff=lfs merge=lfs -text
-*.pickle[[:space:]]*.b[[:space:]]*.gz filter=lfs diff=lfs merge=lfs -text
-*.pickle filter=lfs diff=lfs merge=lfs -text
